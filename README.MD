@@ -18,7 +18,6 @@ project/
 ├── tree_optimizer.py      # Main algorithm implementation
 ├── graph_generator.py     # Graph configuration generation
 ├── config_loader.py       # Configuration file management
-├── main.py               # Example usage (optional)
 ├── config.json           # Configuration file
 └── README.md            # This file
 ```
@@ -452,27 +451,9 @@ Nodes 1 and 2 are high-capacity hubs, node 3 is constrained, others are random.
     "default": 10
   }
 }
-```
 
 
 
-The `main.py` file contains several usage examples:
-
-```bash
-# Run example 1: Config file usage
-python main.py 1
-
-# Run example 2: Programmatic configuration
-python main.py 2
-
-# Run example 3: Setup for comparison
-python main.py 3
-
-# Run example 4: Load and compare
-python main.py 4
-
-# Run all examples
-python main.py all
 ```
 
 ## Output
