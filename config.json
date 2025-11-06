@@ -1,9 +1,9 @@
 {
   "graph_parameters": {
-    "num_nodes": 6,
+    "num_nodes": 7,
     "weak_ratio": 0.4,
     "mandatory_ratio": 0.2,
-    "seed": 24,
+    "seed": 42,
     "comment": "Can also use: num_weak, num_mandatory, num_discretionary instead of num_nodes+ratios"
   },
   "capacities": {
