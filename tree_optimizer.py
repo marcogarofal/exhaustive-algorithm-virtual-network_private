@@ -408,7 +408,7 @@ def compare_2_trees(tree1, tree2, power_nodes_mandatory, power_nodes_discretiona
         return tree2, edgecost2, cost_degree2, False
 
 
-def join_2_trees(graph1, graph2, weak_nodes, power_nodes_mandatory, power_nodes_discretionary, added_edges, seed=None):
+def join_2_trees(graph1, graph2, weak_nodes, power_nodes_mandatory, power_nodes_discretionary, added_edges, seed=None, pre_built_graph=None):
     """Join two trees into one graph"""
     if seed is not None:
         random.seed(seed)
@@ -435,7 +435,11 @@ def join_2_trees(graph1, graph2, weak_nodes, power_nodes_mandatory, power_nodes_
         for j in all_nodes:
             if i != j and not G.has_edge(i, j):
                 matching_tuple = next((tup for tup in added_edges if set(tup[:2]) == set((i, j))), None)
-                if (graph1.has_edge(i, j) or graph1.has_edge(j, i)):
+
+                # Check pre-built graph first
+                if pre_built_graph is not None and pre_built_graph.has_edge(i, j):
+                    G.add_edge(i, j, weight=pre_built_graph[i][j]['weight'])
+                elif (graph1.has_edge(i, j) or graph1.has_edge(j, i)):
                     G.add_edge(i, j, weight=graph1[i][j]['weight'])
                 elif (graph2.has_edge(i, j) or graph2.has_edge(j, i)):
                     G.add_edge(i, j, weight=graph2[i][j]['weight'])
@@ -450,10 +454,16 @@ def join_2_trees(graph1, graph2, weak_nodes, power_nodes_mandatory, power_nodes_
     return G
 
 
-def generate_graphs(graph, power_nodes_discretionary, weak_nodes, power_nodes_mandatory, added_edges, debug_config, seed=None):
+def generate_graphs(graph, power_nodes_discretionary, weak_nodes, power_nodes_mandatory, added_edges, debug_config, seed=None, pre_built_graph=None):
     """Generator that yields graphs with different discretionary node combinations"""
     print("\n2nd graph")
-    graph2 = create_graph(power_nodes_discretionary=power_nodes_discretionary, seed=seed)
+
+    if pre_built_graph is not None:
+        # Use pre-built graph for discretionary phase
+        graph2 = pre_built_graph.subgraph(power_nodes_discretionary).copy()
+    else:
+        graph2 = create_graph(power_nodes_discretionary=power_nodes_discretionary, seed=seed)
+
     if debug_config.plot_initial_graphs:
         draw_graph(graph2)
 
@@ -479,13 +489,13 @@ def generate_graphs(graph, power_nodes_discretionary, weak_nodes, power_nodes_ma
                 graph3 = join_2_trees(graph, graph2, weak_nodes=weak_nodes,
                                      power_nodes_mandatory=power_nodes_mandatory,
                                      power_nodes_discretionary=lista_risultante,
-                                     added_edges=added_edges, seed=seed)
+                                     added_edges=added_edges, seed=seed, pre_built_graph=pre_built_graph)
                 graph3_bak = graph3
             else:
                 graph3 = join_2_trees(graph3_bak, graph2, weak_nodes=weak_nodes,
                                      power_nodes_mandatory=power_nodes_mandatory,
                                      power_nodes_discretionary=lista_risultante,
-                                     added_edges=added_edges, seed=seed)
+                                     added_edges=added_edges, seed=seed, pre_built_graph=pre_built_graph)
 
             count += 1
             print("\n\tgraph3_provv")
@@ -539,7 +549,7 @@ def process_graph(graph, weak_nodes, power_nodes_mandatory, power_nodes_discreti
     return best_tree, best_edge_cost, best_degree_cost, count_picture
 
 
-def run_algorithm(graph_config, algorithm_config, debug_config=None, output_dir='plots'):
+def run_algorithm(graph_config, algorithm_config, debug_config=None, output_dir='plots', pre_built_graph=None):
     """
     Main entry point for the tree optimization algorithm.
 
@@ -549,6 +559,8 @@ def run_algorithm(graph_config, algorithm_config, debug_config=None, output_dir=
         algorithm_config: dict with keys: seed, weight_range (optional)
         debug_config: DebugConfig object or dict
         output_dir: directory for plot outputs
+        pre_built_graph: optional pre-built NetworkX graph (for benchmarks)
+                        If provided, skips graph creation
 
     Returns:
         dict with keys: best_tree, edge_cost, degree_cost, execution_time
@@ -592,10 +604,17 @@ def run_algorithm(graph_config, algorithm_config, debug_config=None, output_dir=
     check_only_discretionary = len(power_nodes_discretionary) == num_nodes
     check_no_mandatory = len(power_nodes_mandatory) == 0 or len(power_nodes_mandatory) == 1
 
-    # Build initial graph
+    # Build initial graph (or use pre-built)
     if len(weak_nodes) + len(power_nodes_mandatory) > 0:
         print("1st graph")
-        graph = create_graph(weak_nodes, power_nodes_mandatory, power_nodes_discretionary=None, seed=seed)
+
+        if pre_built_graph is not None:
+            # Use pre-built graph (for benchmarks)
+            # Extract only weak and mandatory nodes for first phase
+            graph = pre_built_graph.subgraph(list(weak_nodes) + list(power_nodes_mandatory)).copy()
+        else:
+            # Create graph normally
+            graph = create_graph(weak_nodes, power_nodes_mandatory, power_nodes_discretionary=None, seed=seed)
 
         if debug_config.plot_initial_graphs:
             draw_graph(graph)
@@ -658,7 +677,7 @@ def run_algorithm(graph_config, algorithm_config, debug_config=None, output_dir=
 
     # Process discretionary nodes
     graphs = generate_graphs(graph, power_nodes_discretionary, weak_nodes, power_nodes_mandatory,
-                            added_edges, debug_config, seed=seed)
+                            added_edges, debug_config, seed=seed, pre_built_graph=pre_built_graph)
 
     for graph_iter in graphs:
         best_tree, best_edge_cost, best_degree_cost, count_picture = process_graph(

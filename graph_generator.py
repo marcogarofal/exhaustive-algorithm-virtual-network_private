@@ -75,22 +75,64 @@ def generate_graph_config(num_nodes=None, weak_ratio=None, mandatory_ratio=None,
     }
 
 
-def generate_capacities(nodes, default_capacity=10, custom_capacities=None):
+def generate_capacities(nodes, capacity_config, seed=None):
     """
-    Generate capacity dictionary for nodes.
+    Generate capacity dictionary for nodes with multiple options.
 
     Args:
         nodes: List or range of node IDs
-        default_capacity: Default capacity for all nodes
-        custom_capacities: Dict of {node_id: capacity} for custom values
+        capacity_config: Dict with one of these formats:
+            - {"default": 10} - all nodes get same capacity
+            - {"default": 10, "custom": {2: 30, 3: 2}} - default + overrides
+            - {"random": {"min": 5, "max": 20, "seed": 42}} - random in range
+            - {"random": {...}, "custom": {2: 30}} - random + overrides
+            - {1: 10, 2: 30, ...} - explicit for each node (old format)
+        seed: Random seed for reproducibility (overridden by random.seed if present)
 
     Returns:
         dict with node_id: capacity
     """
-    capacities = {node: default_capacity for node in nodes}
+    if seed is not None:
+        random.seed(seed)
 
-    if custom_capacities:
-        capacities.update(custom_capacities)
+    # Check if it's the old explicit format (all keys are node IDs)
+    if all(isinstance(k, (int, str)) and k not in ['default', 'custom', 'random', 'comment']
+           for k in capacity_config.keys()):
+        # Old format: explicit capacities for each node
+        return {int(k): v for k, v in capacity_config.items()}
+
+    # New format with default/random/custom
+    capacities = {}
+
+    # Handle random generation
+    if 'random' in capacity_config:
+        random_config = capacity_config['random']
+        min_cap = random_config.get('min', 1)
+        max_cap = random_config.get('max', 10)
+        random_seed = random_config.get('seed', seed)
+
+        if random_seed is not None:
+            random.seed(random_seed)
+
+        # Generate random capacities for all nodes
+        for node in nodes:
+            capacities[node] = random.randint(min_cap, max_cap)
+
+    # Handle default value
+    elif 'default' in capacity_config:
+        default_capacity = capacity_config['default']
+        capacities = {node: default_capacity for node in nodes}
+
+    else:
+        # No default or random specified, use default of 10
+        capacities = {node: 10 for node in nodes}
+
+    # Apply custom overrides if present
+    if 'custom' in capacity_config:
+        custom = capacity_config['custom']
+        # Convert string keys to int
+        custom_int = {int(k): v for k, v in custom.items()}
+        capacities.update(custom_int)
 
     return capacities
 

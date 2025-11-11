@@ -9,7 +9,7 @@ import time
 import random
 
 
-def run_sa_algorithm(graph_config, algorithm_config, debug_config=None, output_dir='plots_sa'):
+def run_sa_algorithm(graph_config, algorithm_config, debug_config=None, output_dir='plots_sa', pre_built_graph=None):
     """
     Run Simulated Annealing algorithm with exhaustive-compatible interface
 
@@ -19,6 +19,7 @@ def run_sa_algorithm(graph_config, algorithm_config, debug_config=None, output_d
         algorithm_config: dict with keys: seed, initial_temperature (optional), k_factor (optional)
         debug_config: dict or DebugConfig (currently unused by SA)
         output_dir: directory for output (currently unused by SA)
+        pre_built_graph: optional pre-built NetworkX graph (for benchmarks)
 
     Returns:
         dict with keys: best_tree, execution_time, num_nodes, num_edges,
@@ -41,29 +42,34 @@ def run_sa_algorithm(graph_config, algorithm_config, debug_config=None, output_d
     initial_temperature = algorithm_config.get('initial_temperature', 120)
     k_factor = algorithm_config.get('k_factor', 12)
 
-    # Create graph (SAME as exhaustive - included in timing)
-    if seed is not None:
-        random.seed(seed)
+    # Create or use graph
+    if pre_built_graph is not None:
+        # Use pre-built graph (for benchmarks)
+        network_graph = pre_built_graph
+    else:
+        # Create graph (SAME as exhaustive - included in timing)
+        if seed is not None:
+            random.seed(seed)
 
-    network_graph = nx.Graph()
-    all_nodes = list(constrained_nodes) + list(mandatory_power_nodes) + list(discretionary_power_nodes)
+        network_graph = nx.Graph()
+        all_nodes = list(constrained_nodes) + list(mandatory_power_nodes) + list(discretionary_power_nodes)
 
-    # Add nodes with type and capacity attributes
-    for node in constrained_nodes:
-        network_graph.add_node(node, node_type='constrained', links=0, capacity=capacities.get(node, 1))
-    for node in mandatory_power_nodes:
-        network_graph.add_node(node, node_type='power_mandatory', links=0, capacity=capacities.get(node, 10))
-    for node in discretionary_power_nodes:
-        network_graph.add_node(node, node_type='power_discretionary', links=0, capacity=capacities.get(node, 10))
+        # Add nodes with type and capacity attributes
+        for node in constrained_nodes:
+            network_graph.add_node(node, node_type='constrained', links=0, capacity=capacities.get(node, 1))
+        for node in mandatory_power_nodes:
+            network_graph.add_node(node, node_type='power_mandatory', links=0, capacity=capacities.get(node, 10))
+        for node in discretionary_power_nodes:
+            network_graph.add_node(node, node_type='power_discretionary', links=0, capacity=capacities.get(node, 10))
 
-    # Add edges with weights (complete graph, same as exhaustive)
-    for i in all_nodes:
-        for j in all_nodes:
-            if i < j:  # Avoid duplicates
-                weight = random.randint(1, 10)
-                network_graph.add_edge(i, j, weight=weight)
-                network_graph.nodes[i]["links"] = network_graph.nodes[i]["links"] + 1
-                network_graph.nodes[j]["links"] = network_graph.nodes[j]["links"] + 1
+        # Add edges with weights (complete graph, same as exhaustive)
+        for i in all_nodes:
+            for j in all_nodes:
+                if i < j:  # Avoid duplicates
+                    weight = random.randint(1, 10)
+                    network_graph.add_edge(i, j, weight=weight)
+                    network_graph.nodes[i]["links"] = network_graph.nodes[i]["links"] + 1
+                    network_graph.nodes[j]["links"] = network_graph.nodes[j]["links"] + 1
 
     # Run SA algorithm with provided graph (positional arguments)
     best_solution, initial_cost, final_cost, initial_avg_weight, final_avg_weight = sa.run_sa_algorithm(

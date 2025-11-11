@@ -9,7 +9,7 @@ import time
 import random
 
 
-def run_greedy_algorithm(graph_config, algorithm_config, debug_config=None, output_dir='plots_greedy'):
+def run_greedy_algorithm(graph_config, algorithm_config, debug_config=None, output_dir='plots_greedy', pre_built_graph=None):
     """
     Run greedy algorithm with exhaustive-compatible interface
 
@@ -19,6 +19,7 @@ def run_greedy_algorithm(graph_config, algorithm_config, debug_config=None, outp
         algorithm_config: dict with keys: seed, alpha (optional)
         debug_config: dict or DebugConfig (currently unused by greedy)
         output_dir: directory for output (currently unused by greedy)
+        pre_built_graph: optional pre-built NetworkX graph (for benchmarks)
 
     Returns:
         dict with keys: best_tree, execution_time, num_nodes, num_edges,
@@ -41,29 +42,33 @@ def run_greedy_algorithm(graph_config, algorithm_config, debug_config=None, outp
     seed = algorithm_config.get('seed', None)
     alpha = algorithm_config.get('alpha', 0.5)
 
-    # Create graph (MUST be included in timing - same as exhaustive)
-    # This ensures both algorithms start from the same graph structure
-    graph = nx.Graph()
+    # Create or use graph
+    if pre_built_graph is not None:
+        # Use pre-built graph (for benchmarks)
+        graph = pre_built_graph
+    else:
+        # Create graph (MUST be included in timing - same as exhaustive)
+        graph = nx.Graph()
 
-    all_nodes = list(weak_nodes) + list(mandatory_nodes) + list(discretionary_nodes)
+        all_nodes = list(weak_nodes) + list(mandatory_nodes) + list(discretionary_nodes)
 
-    # Add nodes with type attributes (same format as exhaustive)
-    for node in weak_nodes:
-        graph.add_node(node, node_type='weak')
-    for node in mandatory_nodes:
-        graph.add_node(node, node_type='power_mandatory')
-    for node in discretionary_nodes:
-        graph.add_node(node, node_type='power_discretionary')
+        # Add nodes with type attributes (same format as exhaustive)
+        for node in weak_nodes:
+            graph.add_node(node, node_type='weak')
+        for node in mandatory_nodes:
+            graph.add_node(node, node_type='power_mandatory')
+        for node in discretionary_nodes:
+            graph.add_node(node, node_type='power_discretionary')
 
-    # Add edges with weights (complete graph with same seed as exhaustive)
-    if seed is not None:
-        random.seed(seed)
+        # Add edges with weights (complete graph with same seed as exhaustive)
+        if seed is not None:
+            random.seed(seed)
 
-    for i in all_nodes:
-        for j in all_nodes:
-            if i < j:  # Avoid duplicate edges
-                weight = random.randint(1, 10)
-                graph.add_edge(i, j, weight=weight)
+        for i in all_nodes:
+            for j in all_nodes:
+                if i < j:  # Avoid duplicate edges
+                    weight = random.randint(1, 10)
+                    graph.add_edge(i, j, weight=weight)
 
     # Setup global variables required by greedy algorithm
     greedy_steiner.power_capacities = capacities
